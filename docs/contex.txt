@@ -1,0 +1,153 @@
+1. Contexto del caso
+La empresa “TecnoStock S.A.” ya cuenta con su sistema de ventas y facturación (el proyecto de la guía adjunta): registra marcas, categorías, proveedores, productos, clientes y emite facturas con su detalle, IVA y total.
+El problema es que el inventario solo disminuye (por las ventas) pero nunca se documenta cómo ingresa la mercadería. La gerencia necesita un módulo de compras que registre las adquisiciones a los proveedores: a quién se le compró, qué productos, en qué cantidades y a qué costo, calculando subtotal, IVA y total — igual que una factura, pero del lado de la compra.
+Tu tarea es extender el sistema existente agregando una nueva app llamada purchasing, reutilizando los modelos Supplier y Product que ya existen en la app billing.
+2. Punto de partida (archivo adjunto)
+Antes de empezar el módulo de compras, completa el proyecto base de la guía Guia_Django_Ventas.docx hasta tenerlo funcionando. Al terminar deberías contar con:
+•	Proyecto config y app billing creados y registrados.
+•	Modelos Brand, ProductGroup, Supplier, Product, Customer, CustomerProfile, Invoice, InvoiceDetail migrados.
+•	Autenticación, panel admin, CRUDs y la factura con formset funcionando (Partes 1 a 12 de la guía).
+Verifica que puedes crear una factura con varias líneas y que calcula IVA 15% y total. Ese mismo patrón es el que vas a replicar para compras.
+3. Objetivos de aprendizaje
+•	Reutilizar modelos entre apps mediante importación (FK entre apps).
+•	Modelar una relación padre–hijo (cabecera y detalle) con cálculo de subtotales.
+•	Construir formularios maestro–detalle con inlineformset_factory.
+•	Usar Decimal para dinero y entender la diferencia entre precio de venta y costo de compra.
+•	Replicar un patrón existente cambiando solo lo necesario (transferencia de conocimiento).
+4. Parte A — Crear la app purchasing
+Con el entorno virtual activo y desde la carpeta del proyecto:
+# venv activo y dentro de sales_project/
+python manage.py startapp purchasing
+Regístrala en config/settings.py:
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'billing',
+    'purchasing',   # Nueva app de compras
+]
+5. Parte B — Modelos de compras (AYUDA)
+✅ Esta parte te la doy resuelta. Cópiala y entiéndela. Está diseñada para que sea paralela a Invoice / InvoiceDetail de la guía. El resto (Parte C) lo construyes tú por analogía.
+Archivo purchasing/models.py:
+from django.db import models
+from decimal import Decimal
+from billing.models import Supplier, Product   # Reutilizamos modelos de billing
+ 
+ 
+class Purchase(models.Model):
+    """Cabecera de compra. Documenta una adquisición a un proveedor."""
+    supplier = models.ForeignKey(
+        Supplier, on_delete=models.PROTECT, related_name='purchases'
+    )
+    document_number = models.CharField(
+        max_length=20, verbose_name='Supplier Invoice No.'
+    )
+    purchase_date = models.DateTimeField(auto_now_add=True)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
+ 
+    class Meta:
+        verbose_name = 'Purchase'
+        verbose_name_plural = 'Purchases'
+        ordering = ['-purchase_date']
+ 
+    def __str__(self):
+        return f'Purchase #{self.id} - {self.supplier}'
+ 
+ 
+class PurchaseDetail(models.Model):
+    """Líneas de compra. Cada fila es un producto adquirido."""
+    purchase = models.ForeignKey(
+        Purchase, on_delete=models.CASCADE, related_name='details'
+    )
+    product = models.ForeignKey(
+        Product, on_delete=models.PROTECT, related_name='purchase_details'
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+ 
+    def __str__(self):
+        return f'{self.product.name} x {self.quantity}'
+ 
+    def save(self, *args, **kwargs):
+        self.subtotal = self.quantity * self.unit_cost
+        super().save(*args, **kwargs)
+¿Por qué está hecho así?
+•	from billing.models import Supplier, Product  →  no duplicamos modelos; reutilizamos los de la app billing. Así una compra apunta a los mismos proveedores y productos que las ventas.
+•	unit_cost en vez de unit_price. En una venta cobras un precio; en una compra pagas un costo. Misma estructura, distinto significado de negocio.
+•	document_number: el número de la factura física que te entrega el proveedor (campo que no existe en la venta).
+•	supplier con PROTECT (no se borra un proveedor con compras), y purchase con CASCADE (si se borra la compra, se borran sus líneas). Igual que en la factura.
+•	save() calcula el subtotal de la línea automáticamente, idéntico a InvoiceDetail.
+Genera y aplica las migraciones:
+python manage.py makemigrations
+python manage.py migrate
+6. Equivalencias Ventas → Compras
+Esta tabla es tu mapa: casi todo el código de la app billing se traduce cambiando lo de la columna derecha.
+Ventas (billing)	Compras (purchasing)	Cambio clave
+Invoice	Purchase	customer → supplier; se agrega document_number
+InvoiceDetail	PurchaseDetail	unit_price → unit_cost
+customer (FK Customer)	supplier (FK Supplier)	proveedor en lugar de cliente
+precio de venta	costo de compra	la venta ingresa dinero; la compra lo egresa
+billing:invoice_*	purchasing:purchase_*	nuevo app_name = 'purchasing'
+El stock NO cambia	El stock debería SUMAR (reto)	una compra reabastece inventario
+
+7. Parte C — Lo que debes construir tú
+Replica el lado de ventas para compras, por analogía, usando la tabla anterior. No copies y pegues a ciegas: cambia lo mínimo y entiende cada cambio. Debes entregar:
+7.1 admin (purchasing/admin.py)
+•	Registrar Purchase con un PurchaseDetailInline (TabularInline), igual que InvoiceAdmin.
+•	list_display con id, supplier, document_number, purchase_date y total.
+7.2 forms (purchasing/forms.py)
+•	PurchaseForm con campos ['supplier', 'document_number'].
+•	PurchaseDetailFormSet con inlineformset_factory(Purchase, PurchaseDetail, ...) y campos ['product', 'quantity', 'unit_cost'], extra=3, can_delete=True.
+7.3 views (purchasing/views.py) — usa FBV, como la factura
+•	purchase_list: lista con select_related('supplier').
+•	purchase_create: valida form + formset, guarda, y calcula totales:
+# Dentro de purchase_create, tras guardar el formset:
+subtotal = sum(d.subtotal for d in purchase.details.all())
+purchase.subtotal = subtotal
+purchase.tax = subtotal * Decimal('0.15')   # IVA 15%
+purchase.total = purchase.subtotal + purchase.tax
+purchase.save()
+•	purchase_detail: usa prefetch_related('details__product').
+•	purchase_delete: confirma y elimina (las líneas caen por CASCADE).
+7.4 urls (purchasing/urls.py)
+•	app_name = 'purchasing' y 5 rutas: list, create, detail, delete (mismas que invoice).
+•	Inclúyelas en config/urls.py:  path('purchases/', include('purchasing.urls')).
+7.5 templates (purchasing/templates/purchasing/)
+•	purchase_list.html, purchase_form.html (con el formset), purchase_detail.html, purchase_confirm_delete.html.
+•	Heredan de {% extends 'billing/base.html' %}.
+•	Agrega un enlace “Purchases” en el navbar de base.html.
+8. Retos opcionales (puntos extra)
+1.	Actualizar stock: al confirmar la compra, suma la cantidad comprada al stock de cada producto (recuerda: la venta resta, la compra suma). Pista: Product.objects.filter(pk=...).update(stock=F('stock') + qty).
+2.	Evitar duplicados: que un mismo document_number no se repita para el mismo proveedor (unique_together / UniqueConstraint).
+3.	Filtros: filtra compras por proveedor o por rango de fechas usando lookups __range, __year.
+4.	Reporte: costo promedio por producto con aggregate(Avg('unit_cost')).
+9. Entregables
+•	Carpeta/repositorio del proyecto con las apps billing y purchasing funcionando.
+•	Migraciones aplicadas (incluir la carpeta migrations).
+•	Capturas de pantalla: lista de compras, formulario con varias líneas, y vista de detalle con IVA y total.
+•	Un breve README.md (media página) explicando cómo la app purchasing reutiliza Supplier y Product de billing.
+10. Rúbrica de evaluación
+Criterio	Puntos
+Proyecto base de la guía funcionando (config + billing)	2
+App purchasing creada, registrada y migrada	1
+Modelos Purchase / PurchaseDetail correctos (FK entre apps, PROTECT/CASCADE, save(), Decimal)	2
+Forms + formset (inlineformset_factory) y cálculo de subtotal / IVA / total	2
+Templates, navegación y CRUD + detalle de compra	2
+Convenciones (inglés, __str__, Meta) y orden/limpieza del código	1
+TOTAL	10
+Retos opcionales	+ hasta 1
+
+11. Recomendaciones técnicas
+•	Identificadores en inglés (Purchase, supplier, unit_cost), igual que la guía.
+•	Usa siempre Decimal para dinero; nunca float.
+•	Coherencia en on_delete: PROTECT en supplier/product, CASCADE en el detalle.
+•	Optimiza consultas con select_related y prefetch_related.
+•	Trabaja por analogía: abre el código de Invoice al lado y traduce; no reinventes el patrón.
+Fin de la tarea — Módulo de Compras (Purchasing)

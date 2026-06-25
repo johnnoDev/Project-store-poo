@@ -1,0 +1,82 @@
+{% extends "billing/base.html" %}
+{% block title %}New Purchase{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-cart-plus"></i> New Purchase</h2>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">Purchase Header</h5></div>
+    <div class="card-body">
+      <div class="row">
+        {% for field in form %}
+        <div class="col-md-4 mb-3">
+          <label class="form-label fw-semibold">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}
+            <div class="text-danger small mt-1">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">Purchase Lines</h5></div>
+    <div class="card-body p-0">
+      {{ formset.management_form }}
+      <table class="table mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Unit Cost</th>
+            <th>Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for detail_form in formset %}
+          <tr>
+            <td>
+              {{ detail_form.id }}
+              {{ detail_form.product }}
+              {% if detail_form.product.errors %}
+                <div class="text-danger small">{{ detail_form.product.errors }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {{ detail_form.quantity }}
+              {% if detail_form.quantity.errors %}
+                <div class="text-danger small">{{ detail_form.quantity.errors }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {{ detail_form.unit_cost }}
+              {% if detail_form.unit_cost.errors %}
+                <div class="text-danger small">{{ detail_form.unit_cost.errors }}</div>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if detail_form.DELETE %}
+                {{ detail_form.DELETE }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-success btn-lg">
+      <i class="bi bi-save"></i> Save Purchase
+    </button>
+    <a href="{% url 'purchasing:purchase_list' %}" class="btn btn-secondary btn-lg">
+      <i class="bi bi-x-lg"></i> Cancel
+    </a>
+  </div>
+</form>
+{% endblock %}
