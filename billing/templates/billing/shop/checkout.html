@@ -1,0 +1,234 @@
+{% extends "billing/base.html" %}
+{% block title %}Finalizar Compra – SalesApp{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{% url 'billing:cart_view' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Volver al carrito
+  </a>
+  <h2 class="mb-0"><i class="bi bi-credit-card-2-front"></i> Finalizar Compra</h2>
+</div>
+
+<form method="post" id="checkout-form">
+  {% csrf_token %}
+  <div class="row g-4">
+
+    <!-- ── Columna izquierda: datos + pago ── -->
+    <div class="col-lg-8">
+
+      <!-- Datos de facturación -->
+      <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="bi bi-person-lines-fill"></i> Datos de Facturación</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Nombre completo</label>
+              <input type="text" class="form-control bg-light" value="{{ request.user.get_full_name|default:request.user.username }}" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Correo electrónico</label>
+              <input type="email" class="form-control bg-light" value="{{ request.user.email }}" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ checkout_form.cedula.label }} <span class="text-danger">*</span></label>
+              {{ checkout_form.cedula }}
+              {% if checkout_form.cedula.errors %}
+                <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle"></i> {{ checkout_form.cedula.errors.0 }}</div>
+              {% endif %}
+              <div class="form-text">Cédula de 10 dígitos o RUC de 13 dígitos.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{{ checkout_form.phone.label }}</label>
+              {{ checkout_form.phone }}
+            </div>
+            <div class="col-12">
+              <label class="form-label">{{ checkout_form.address.label }}</label>
+              {{ checkout_form.address }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Método de pago -->
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="bi bi-wallet2"></i> Método de Pago</h5>
+        </div>
+        <div class="card-body">
+
+          <!-- Botones de selección de método -->
+          <div class="d-flex gap-3 flex-wrap mb-4">
+            {% for choice in payment_form.method %}
+            <div class="method-option">
+              <input type="radio" class="btn-check" name="method" id="{{ choice.id_for_label }}" value="{{ choice.data.value }}"
+                     {% if choice.data.value == payment_form.method.value %}checked{% endif %}>
+              <label class="btn btn-outline-secondary px-4 py-3 d-flex flex-column align-items-center gap-1" for="{{ choice.id_for_label }}" style="min-width:110px;">
+                {% if choice.data.value == 'card' %}
+                  <i class="bi bi-credit-card fs-3"></i>
+                  <span class="small">Tarjeta</span>
+                {% elif choice.data.value == 'paypal' %}
+                  <i class="bi bi-paypal fs-3"></i>
+                  <span class="small">PayPal</span>
+                {% elif choice.data.value == 'transfer' %}
+                  <i class="bi bi-bank fs-3"></i>
+                  <span class="small">Transferencia</span>
+                {% endif %}
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+          {% if payment_form.method.errors %}
+            <div class="alert alert-danger py-2 small">{{ payment_form.method.errors.0 }}</div>
+          {% endif %}
+
+          <!-- Campos: Tarjeta -->
+          <div id="fields-card" class="payment-fields" style="display:none;">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">{{ payment_form.card_number.label }}</label>
+                {{ payment_form.card_number }}
+                {% if payment_form.card_number.errors %}
+                  <div class="text-danger small mt-1">{{ payment_form.card_number.errors.0 }}</div>
+                {% endif %}
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">{{ payment_form.card_holder.label }}</label>
+                {{ payment_form.card_holder }}
+                {% if payment_form.card_holder.errors %}
+                  <div class="text-danger small mt-1">{{ payment_form.card_holder.errors.0 }}</div>
+                {% endif %}
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">{{ payment_form.card_expiry.label }}</label>
+                {{ payment_form.card_expiry }}
+                {% if payment_form.card_expiry.errors %}
+                  <div class="text-danger small mt-1">{{ payment_form.card_expiry.errors.0 }}</div>
+                {% endif %}
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">{{ payment_form.card_cvv.label }}</label>
+                {{ payment_form.card_cvv }}
+                {% if payment_form.card_cvv.errors %}
+                  <div class="text-danger small mt-1">{{ payment_form.card_cvv.errors.0 }}</div>
+                {% endif %}
+              </div>
+              <div class="col-12">
+                <div class="alert alert-info py-2 small mb-0">
+                  <i class="bi bi-shield-lock"></i> Pago simulado. No ingreses datos reales de tarjeta.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Campos: PayPal -->
+          <div id="fields-paypal" class="payment-fields" style="display:none;">
+            <div class="alert alert-info py-2 small mb-3">
+              <i class="bi bi-paypal"></i> Serás redirigido a PayPal para completar el pago (simulado).
+            </div>
+            <label class="form-label fw-semibold">{{ payment_form.paypal_email.label }}</label>
+            {{ payment_form.paypal_email }}
+            {% if payment_form.paypal_email.errors %}
+              <div class="text-danger small mt-1">{{ payment_form.paypal_email.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Campos: Transferencia -->
+          <div id="fields-transfer" class="payment-fields" style="display:none;">
+            <div class="alert alert-warning py-2 small mb-3">
+              <strong><i class="bi bi-bank"></i> Datos bancarios:</strong><br>
+              Banco: Banco del Pichincha &nbsp;|&nbsp; Cta. Corriente: <strong>2200123456</strong><br>
+              Titular: SalesApp S.A. &nbsp;|&nbsp; RUC: <strong>1234567890001</strong>
+            </div>
+            <label class="form-label fw-semibold">{{ payment_form.transfer_ref.label }}</label>
+            {{ payment_form.transfer_ref }}
+            {% if payment_form.transfer_ref.errors %}
+              <div class="text-danger small mt-1">{{ payment_form.transfer_ref.errors.0 }}</div>
+            {% endif %}
+            <div class="form-text">Ingresa el número de comprobante de tu transferencia.</div>
+          </div>
+
+        </div>
+        <div class="card-footer">
+          <button type="submit" class="btn btn-success btn-lg w-100">
+            <i class="bi bi-lock-fill"></i> Confirmar y Pagar ${{ total }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Columna derecha: resumen del pedido ── -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm sticky-top" style="top:80px;">
+        <div class="card-header bg-dark text-white">
+          <h5 class="mb-0"><i class="bi bi-bag-check"></i> Resumen del pedido</h5>
+        </div>
+        <ul class="list-group list-group-flush">
+          {% for item in items %}
+          <li class="list-group-item d-flex justify-content-between align-items-start">
+            <div>
+              <span class="fw-semibold">{{ item.product.name }}</span><br>
+              <small class="text-muted">x{{ item.qty }} &times; ${{ item.product.price }}</small>
+            </div>
+            <strong>${{ item.line_total }}</strong>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="card-footer">
+          <div class="d-flex justify-content-between text-muted small"><span>Subtotal</span><span>${{ subtotal }}</span></div>
+          <div class="d-flex justify-content-between text-muted small"><span>IVA 15%</span><span>${{ iva }}</span></div>
+          <hr class="my-2">
+          <div class="d-flex justify-content-between fw-bold fs-5">
+            <span>TOTAL</span>
+            <span class="text-success">${{ total }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  // Mostrar / ocultar campos según método seleccionado
+  function showFields(method) {
+    document.querySelectorAll('.payment-fields').forEach(el => el.style.display = 'none');
+    if (method) {
+      const target = document.getElementById('fields-' + method);
+      if (target) target.style.display = 'block';
+    }
+  }
+
+  document.querySelectorAll('input[name="method"]').forEach(radio => {
+    radio.addEventListener('change', () => showFields(radio.value));
+  });
+
+  // Inicializar en recarga (p.ej. al volver con error de validación)
+  const checked = document.querySelector('input[name="method"]:checked');
+  if (checked) showFields(checked.value);
+
+  // Formateo automático del número de tarjeta  (grupos de 4)
+  const cardInput = document.querySelector('input[name="card_number"]');
+  if (cardInput) {
+    cardInput.addEventListener('input', function () {
+      let v = this.value.replace(/\D/g, '').substring(0, 16);
+      this.value = v.match(/.{1,4}/g)?.join(' ') || v;
+    });
+  }
+
+  // Formateo automático de vencimiento  (MM/AA)
+  const expInput = document.querySelector('input[name="card_expiry"]');
+  if (expInput) {
+    expInput.addEventListener('input', function () {
+      let v = this.value.replace(/\D/g, '').substring(0, 4);
+      if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+      this.value = v;
+    });
+  }
+})();
+</script>
+{% endblock %}

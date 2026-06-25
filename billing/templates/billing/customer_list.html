@@ -1,0 +1,49 @@
+{% extends "billing/base.html" %}
+{% block title %}Clientes{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2><i class="bi bi-people"></i> Clientes</h2>
+  <a href="{% url 'billing:customer_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Nuevo Cliente
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>Cédula/RUC</th>
+          <th>Apellidos</th>
+          <th>Nombres</th>
+          <th>Email</th>
+          <th>Teléfono</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in customers %}
+        <tr>
+          <td><code>{{ customer.cedula }}</code></td>
+          <td>{{ customer.last_name }}</td>
+          <td>{{ customer.first_name }}</td>
+          <td>{{ customer.email|default:"—" }}</td>
+          <td>{{ customer.phone|default:"—" }}</td>
+          <td>
+            <a href="{% url 'billing:customer_edit' customer.pk %}" class="btn btn-sm btn-outline-warning">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <a href="{% url 'billing:customer_delete' customer.pk %}" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-3">No hay clientes registrados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

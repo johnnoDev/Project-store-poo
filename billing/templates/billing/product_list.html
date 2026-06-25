@@ -1,0 +1,536 @@
+{% extends "billing/base.html" %}
+{% block title %}Productos{% endblock %}
+
+{% block content %}
+
+<meta name="csrf-token" content="{{ csrf_token }}">
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0"><i class="bi bi-box-seam"></i> Productos</h2>
+  <a href="{% url 'billing:product_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Nuevo Producto
+  </a>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-funnel"></i> Filtros de búsqueda</span>
+    <button class="btn btn-sm btn-outline-secondary" type="button"
+            data-bs-toggle="collapse" data-bs-target="#filtros">
+      <i class="bi bi-chevron-down"></i>
+    </button>
+  </div>
+  <div class="collapse show" id="filtros">
+    <div class="card-body">
+      <form method="get" id="form-filtros">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label fw-semibold"><i class="bi bi-upc"></i> Código</label>
+            <input type="text" name="code" class="form-control" placeholder="Ej: PROD-001"
+                   value="{{ search.code|default:'' }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold"><i class="bi bi-card-text"></i> Nombre</label>
+            <input type="text" name="name" class="form-control" placeholder="Nombre del producto"
+                   value="{{ search.name|default:'' }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold"><i class="bi bi-tag"></i> Marca</label>
+            <select name="brand" class="form-select">
+              <option value="">— Todas las marcas —</option>
+              {% for brand in brands %}
+              <option value="{{ brand.pk }}"
+                {% if search.brand == brand.pk|stringformat:"s" %}selected{% endif %}>
+                {{ brand.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold"><i class="bi bi-collection"></i> Grupo</label>
+            <select name="group" class="form-select">
+              <option value="">— Todos los grupos —</option>
+              {% for group in groups %}
+              <option value="{{ group.pk }}"
+                {% if search.group == group.pk|stringformat:"s" %}selected{% endif %}>
+                {{ group.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold"><i class="bi bi-currency-dollar"></i> Precio mín.</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" name="price_min" class="form-control"
+                     placeholder="0.00" step="0.01" min="0"
+                     value="{{ search.price_min|default:'' }}">
+            </div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold"><i class="bi bi-currency-dollar"></i> Precio máx.</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" name="price_max" class="form-control"
+                     placeholder="9999.99" step="0.01" min="0"
+                     value="{{ search.price_max|default:'' }}">
+            </div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold"><i class="bi bi-archive"></i> Stock mín.</label>
+            <input type="number" name="stock_min" class="form-control"
+                   placeholder="0" min="0" value="{{ search.stock_min|default:'' }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold"><i class="bi bi-archive"></i> Stock máx.</label>
+            <input type="number" name="stock_max" class="form-control"
+                   placeholder="999" min="0" value="{{ search.stock_max|default:'' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold"><i class="bi bi-truck"></i> Proveedor</label>
+            <select name="supplier" class="form-select">
+              <option value="">— Todos los proveedores —</option>
+              {% for sup in suppliers_list %}
+              <option value="{{ sup.pk }}"
+                {% if search.supplier == sup.pk|stringformat:"s" %}selected{% endif %}>
+                {{ sup.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-search"></i> Buscar
+          </button>
+          <a href="{% url 'billing:product_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i> Limpiar filtros
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="results-card">
+
+  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+    <span class="fw-semibold">
+      <i class="bi bi-table"></i>
+      {% if page_obj.paginator.count == 0 %}
+        Sin resultados
+      {% else %}
+        {{ page_obj.paginator.count }}
+        producto{{ page_obj.paginator.count|pluralize }} encontrado{{ page_obj.paginator.count|pluralize }}
+      {% endif %}
+    </span>
+
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+
+      <button class="btn btn-sm btn-outline-dark"
+              data-bs-toggle="modal" data-bs-target="#modalColumnas"
+              title="Personalizar columnas visibles">
+        <i class="bi bi-layout-three-columns"></i>
+        <span id="col-count-badge">{{ visible_count }}</span>/{{ total_col_count }} columnas
+      </button>
+
+      <a id="btn-export-pdf"
+         href="?{{ query_params }}{% if query_params %}&{% endif %}export=pdf"
+         class="btn btn-sm btn-danger" title="Exportar a PDF (columnas visibles)">
+        <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+      </a>
+      <a id="btn-export-excel"
+         href="?{{ query_params }}{% if query_params %}&{% endif %}export=excel"
+         class="btn btn-sm btn-success" title="Exportar a Excel (columnas visibles)">
+        <i class="bi bi-file-earmark-excel-fill"></i> Excel
+      </a>
+
+      <span class="text-muted small">
+        Pág. {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+      </span>
+    </div>
+  </div>
+
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="product-table">
+
+        <thead class="table-dark">
+          <tr>
+            {% for col in all_columns %}
+            <th data-col="{{ col.key }}"{% if not col.visible %} class="d-none"{% endif %}>
+              {{ col.label }}
+            </th>
+            {% endfor %}
+            <th class="text-center">Acciones</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for product in products %}
+          <tr class="product-row">
+
+            {% for col in all_columns %}{% if col.key == "image" %}
+            <td data-col="image"
+                class="text-center p-1{% if not col.visible %} d-none{% endif %}"
+                style="width:70px">
+              {% if product.image %}
+                <img src="{{ product.image.url }}"
+                     alt="{{ product.name }}"
+                     class="rounded border object-fit-cover"
+                     style="width:52px;height:52px;cursor:pointer;object-fit:cover;"
+                     onclick="window.location='{% url 'billing:product_detail' product.pk %}'">
+              {% else %}
+                <div class="rounded d-flex align-items-center justify-content-center mx-auto fw-bold text-white"
+                     style="width:52px;height:52px;font-size:1.1rem;cursor:pointer;
+                            background:linear-gradient(135deg,#667eea,#764ba2);"
+                     onclick="window.location='{% url 'billing:product_detail' product.pk %}'"
+                     title="Sin imagen — Ver detalle">
+                  {{ product.name|slice:":1"|upper }}
+                </div>
+              {% endif %}
+            </td>
+            {% endif %}{% endfor %}
+
+            {% for col in all_columns %}{% if col.key == "code" %}
+            <td data-col="code"{% if not col.visible %} class="d-none"{% endif %}>
+              <code>{{ product.code }}</code>
+            </td>
+            {% endif %}{% endfor %}
+
+            {% for col in all_columns %}{% if col.key == "name" %}
+            <td data-col="name"{% if not col.visible %} class="d-none"{% endif %}>
+              <strong>{{ product.name }}</strong>
+            </td>
+            {% endif %}{% endfor %}
+
+            {% for col in all_columns %}{% if col.key == "description" %}
+            <td data-col="description"{% if not col.visible %} class="d-none"{% endif %}
+                style="max-width:200px;">
+              <span class="text-truncate d-block">
+                {{ product.description|truncatechars:70|default:"—" }}
+              </span>
+            </td>
+            {% endif %}{% endfor %}
+
+            {% for col in all_columns %}{% if col.key == "brand" %}
+            <td data-col="brand"{% if not col.visible %} class="d-none"{% endif %}>
+              {{ product.brand.name }}
+            </td>
+            {% endif %}{% endfor %}
+
+            {% for col in all_columns %}{% if col.key == "group" %}
+            <td data-col="group"{% if not col.visible %} class="d-none"{% endif %}>
+              {{ product.group.name }}
+            </td>
+            {% endif %}{% endfor %}
+
+            {% for col in all_columns %}{% if col.key == "price" %}
+            <td data-col="price"
+                class="text-end{% if not col.visible %} d-none{% endif %}">
+              ${{ product.price }}
+            </td>
+            {% endif %}{% endfor %}
+
+            {% for col in all_columns %}{% if col.key == "stock" %}
+            <td data-col="stock"
+                class="text-center{% if not col.visible %} d-none{% endif %}">
+              {% if product.stock == 0 %}
+                <span class="badge bg-danger rounded-pill" title="Sin stock">0</span>
+              {% elif product.stock < 5 %}
+                <span class="badge bg-danger rounded-pill" title="Stock crítico">{{ product.stock }}</span>
+              {% elif product.stock < 20 %}
+                <span class="badge bg-warning text-dark rounded-pill" title="Stock bajo">{{ product.stock }}</span>
+              {% else %}
+                <span class="badge bg-success rounded-pill">{{ product.stock }}</span>
+              {% endif %}
+            </td>
+            {% endif %}{% endfor %}
+
+            {% for col in all_columns %}{% if col.key == "suppliers" %}
+            <td data-col="suppliers"{% if not col.visible %} class="d-none"{% endif %}>
+              {% for s in product.suppliers.all %}
+                <span class="badge bg-secondary me-1">{{ s.name }}</span>
+              {% empty %}
+                <span class="text-muted">—</span>
+              {% endfor %}
+            </td>
+            {% endif %}{% endfor %}
+
+            {% for col in all_columns %}{% if col.key == "balance" %}
+            <td data-col="balance"
+                class="text-end fw-semibold{% if not col.visible %} d-none{% endif %}">
+              <span class="text-primary">${{ product.balance }}</span>
+            </td>
+            {% endif %}{% endfor %}
+
+            <td class="text-center text-nowrap">
+              <a href="{% url 'billing:product_detail' product.pk %}"
+                 class="btn btn-sm btn-outline-info" title="Ver detalle">
+                <i class="bi bi-eye"></i>
+              </a>
+              <a href="{% url 'billing:product_edit' product.pk %}"
+                 class="btn btn-sm btn-outline-warning" title="Editar">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'billing:product_delete' product.pk %}"
+                 class="btn btn-sm btn-outline-danger" title="Eliminar">
+                <i class="bi bi-trash"></i>
+              </a>
+            </td>
+
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="20" class="text-center text-muted py-5">
+              <i class="bi bi-search fs-2 d-block mb-2 opacity-50"></i>
+              No se encontraron productos con los filtros aplicados.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <small class="text-muted">
+      Mostrando {{ page_obj.start_index }}–{{ page_obj.end_index }}
+      de {{ page_obj.paginator.count }} productos
+    </small>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?{{ query_params }}&page=1"><i class="bi bi-chevron-double-left"></i></a>
+        </li>
+        <li class="page-item">
+          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.previous_page_number }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-double-left"></i></span></li>
+        <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+          {% if num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+          <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+            <a class="page-link" href="?{{ query_params }}&page={{ num }}">{{ num }}</a>
+          </li>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.next_page_number }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+        <li class="page-item">
+          <a class="page-link" href="?{{ query_params }}&page={{ page_obj.paginator.num_pages }}">
+            <i class="bi bi-chevron-double-right"></i>
+          </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>
+        <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-double-right"></i></span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+
+</div>
+
+<div class="modal fade" id="modalColumnas" tabindex="-1" aria-labelledby="modalColumnasLabel">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+
+      <div class="modal-header bg-dark text-white">
+        <div>
+          <h5 class="modal-title mb-0" id="modalColumnasLabel">
+            <i class="bi bi-layout-three-columns"></i> Columnas visibles
+          </h5>
+          <small class="text-white-50" id="modal-counter-text">
+            Cargando…
+          </small>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body pb-2">
+        <p class="text-muted small mb-3">
+          Selecciona los campos que deseas mostrar en la tabla de productos.
+          Las exportaciones PDF y Excel usarán exactamente las mismas columnas.
+        </p>
+        <div class="row g-2" id="col-checkboxes">
+          {% for col in all_columns %}
+          <div class="col-6 col-sm-4">
+            <div class="form-check border rounded px-3 py-2 h-100
+                        {% if col.visible %}border-primary bg-primary bg-opacity-10{% else %}border-secondary-subtle{% endif %}"
+                 id="wrap_{{ col.key }}">
+              <input class="form-check-input col-checkbox"
+                     type="checkbox"
+                     id="col_{{ col.key }}"
+                     value="{{ col.key }}"
+                     data-default="{{ col.default|yesno:'true,false' }}"
+                     {% if col.visible %}checked{% endif %}>
+              <label class="form-check-label fw-semibold user-select-none w-100"
+                     for="col_{{ col.key }}" style="cursor:pointer;">
+                {{ col.label }}
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="alert alert-warning mt-3 py-2 d-none small" id="alert-min-col">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          Debes mantener al menos <strong>1 columna</strong> visible.
+        </div>
+      </div>
+
+      <div class="modal-footer d-flex justify-content-between flex-wrap gap-2">
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-dark" id="btn-select-all" type="button">
+            <i class="bi bi-check2-all"></i> Seleccionar todo
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" id="btn-reset-cols" type="button">
+            <i class="bi bi-arrow-counterclockwise"></i> Restablecer
+          </button>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">
+            Cancelar
+          </button>
+          <button class="btn btn-primary" id="btn-apply-cols" type="button">
+            <span class="spinner-border spinner-border-sm d-none me-1" id="apply-spinner"></span>
+            <i class="bi bi-check-lg" id="apply-icon"></i> Aplicar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  /* ── Datos del servidor ─────────────────────────────────────────── */
+  const DEFAULT_COLS = {{ col_defaults_json|safe }};
+  const ALL_KEYS     = {{ col_all_keys_json|safe }};
+  const SAVE_URL     = '{% url "billing:product_columns_save" %}';
+  const CSRF         = document.querySelector('meta[name="csrf-token"]').content;
+
+  /* ── Helpers ────────────────────────────────────────────────────── */
+  const checkboxes  = () => [...document.querySelectorAll('.col-checkbox')];
+  const checkedCols = () => checkboxes().filter(cb => cb.checked).map(cb => cb.value);
+
+  function updateModalCounter () {
+    const n = checkedCols().length;
+    document.getElementById('modal-counter-text').textContent =
+      `${n} de ${ALL_KEYS.length} campos seleccionados`;
+    // estilo de las tarjetas de checkbox
+    checkboxes().forEach(cb => {
+      const wrap = document.getElementById(`wrap_${cb.value}`);
+      if (!wrap) return;
+      if (cb.checked) {
+        wrap.classList.add('border-primary', 'bg-primary', 'bg-opacity-10');
+        wrap.classList.remove('border-secondary-subtle');
+      } else {
+        wrap.classList.remove('border-primary', 'bg-primary', 'bg-opacity-10');
+        wrap.classList.add('border-secondary-subtle');
+      }
+    });
+    // alerta mínimo
+    document.getElementById('alert-min-col').classList.toggle('d-none', n > 0);
+  }
+
+  function applyColumnsToTable (visibleKeys) {
+    const visibleSet = new Set(visibleKeys);
+    ALL_KEYS.forEach(key => {
+      const hidden = !visibleSet.has(key);
+      document.querySelectorAll(`[data-col="${key}"]`).forEach(el => {
+        el.classList.toggle('d-none', hidden);
+      });
+    });
+    // actualiza badge del botón
+    document.getElementById('col-count-badge').textContent = visibleKeys.length;
+    // flash de la tabla
+    const tbody = document.querySelector('#product-table tbody');
+    if (tbody) {
+      tbody.style.transition = 'opacity .25s';
+      tbody.style.opacity = '0.3';
+      setTimeout(() => { tbody.style.opacity = '1'; }, 260);
+    }
+  }
+
+  /* ── Seleccionar todo ───────────────────────────────────────────── */
+  document.getElementById('btn-select-all').addEventListener('click', () => {
+    checkboxes().forEach(cb => { cb.checked = true; });
+    updateModalCounter();
+  });
+
+  /* ── Restablecer ────────────────────────────────────────────────── */
+  document.getElementById('btn-reset-cols').addEventListener('click', () => {
+    const defaultSet = new Set(DEFAULT_COLS);
+    checkboxes().forEach(cb => { cb.checked = defaultSet.has(cb.value); });
+    updateModalCounter();
+  });
+
+  /* ── Cambio individual de checkbox ─────────────────────────────── */
+  document.getElementById('col-checkboxes').addEventListener('change', updateModalCounter);
+
+  /* ── Aplicar ────────────────────────────────────────────────────── */
+  document.getElementById('btn-apply-cols').addEventListener('click', async () => {
+    const cols = checkedCols();
+    if (cols.length === 0) {
+      document.getElementById('alert-min-col').classList.remove('d-none');
+      return;
+    }
+
+    // Feedback visual
+    const spinner  = document.getElementById('apply-spinner');
+    const applyBtn = document.getElementById('btn-apply-cols');
+    const applyIcon = document.getElementById('apply-icon');
+    spinner.classList.remove('d-none');
+    applyIcon.classList.add('d-none');
+    applyBtn.disabled = true;
+
+    try {
+      await fetch(SAVE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': CSRF,
+        },
+        body: JSON.stringify({ columns: cols }),
+      });
+    } finally {
+      spinner.classList.add('d-none');
+      applyIcon.classList.remove('d-none');
+      applyBtn.disabled = false;
+    }
+
+    // Aplica cambios en la tabla inmediatamente
+    applyColumnsToTable(cols);
+
+    // Cierra el modal
+    bootstrap.Modal.getInstance(document.getElementById('modalColumnas')).hide();
+  });
+
+  /* ── Inicialización del contador al abrir el modal ─────────────── */
+  document.getElementById('modalColumnas').addEventListener('show.bs.modal', updateModalCounter);
+
+})();
+</script>
+{% endblock %}

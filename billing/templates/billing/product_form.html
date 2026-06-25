@@ -1,0 +1,341 @@
+{% extends "billing/base.html" %}
+{% block title %}{{ title }} — Producto{% endblock %}
+
+{% block content %}
+
+{# ── Cabecera de página ──────────────────────────────────────────── #}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{% url 'billing:product_list' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h3 class="mb-0 fw-bold">
+      <i class="bi bi-box-seam text-primary"></i> {{ title }}
+    </h3>
+    <small class="text-muted">
+      {% if form.instance.pk %}
+        Editando: <strong>{{ form.instance.name }}</strong>
+      {% else %}
+        Completa los campos para registrar un nuevo producto
+      {% endif %}
+    </small>
+  </div>
+</div>
+
+{# Errores generales del formulario #}
+{% if form.non_field_errors %}
+<div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  <div>{{ form.non_field_errors }}</div>
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" id="product-form" novalidate>
+  {% csrf_token %}
+
+  <div class="row g-4">
+
+    <div class="col-lg-7">
+      <div class="card shadow-sm h-100" style="border-top:3px solid #0d6efd;">
+        <div class="card-header bg-dark text-white py-3">
+          <h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>Información del Producto</h5>
+        </div>
+        <div class="card-body p-4">
+
+          {# Código #}
+          <div class="mb-4">
+            <label class="form-label fw-semibold" for="{{ form.code.id_for_label }}">
+              <i class="bi bi-upc text-primary me-1"></i>{{ form.code.label }}
+              <span class="text-danger">*</span>
+            </label>
+            {{ form.code }}
+            {% if form.code.errors %}
+            <div class="text-danger small mt-1">
+              <i class="bi bi-exclamation-circle-fill"></i> {{ form.code.errors|join:" " }}
+            </div>
+            {% endif %}
+            {% if form.code.help_text %}
+            <div class="form-text"><i class="bi bi-lightbulb"></i> {{ form.code.help_text }}</div>
+            {% endif %}
+          </div>
+
+          {# Nombre #}
+          <div class="mb-4">
+            <label class="form-label fw-semibold" for="{{ form.name.id_for_label }}">
+              <i class="bi bi-card-text text-primary me-1"></i>{{ form.name.label }}
+              <span class="text-danger">*</span>
+            </label>
+            {{ form.name }}
+            {% if form.name.errors %}
+            <div class="text-danger small mt-1">
+              <i class="bi bi-exclamation-circle-fill"></i> {{ form.name.errors|join:" " }}
+            </div>
+            {% endif %}
+          </div>
+
+          {# Marca + Grupo #}
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ form.brand.id_for_label }}">
+                <i class="bi bi-tag-fill text-primary me-1"></i>{{ form.brand.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.brand }}
+              {% if form.brand.errors %}
+              <div class="text-danger small mt-1">{{ form.brand.errors|join:" " }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold" for="{{ form.group.id_for_label }}">
+                <i class="bi bi-collection-fill text-primary me-1"></i>{{ form.group.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.group }}
+              {% if form.group.errors %}
+              <div class="text-danger small mt-1">{{ form.group.errors|join:" " }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          {# Descripción #}
+          <div class="mb-4">
+            <label class="form-label fw-semibold" for="{{ form.description.id_for_label }}">
+              <i class="bi bi-journal-text text-primary me-1"></i>{{ form.description.label }}
+            </label>
+            {{ form.description }}
+            {% if form.description.errors %}
+            <div class="text-danger small mt-1">{{ form.description.errors|join:" " }}</div>
+            {% endif %}
+          </div>
+
+          {# Proveedores #}
+          <div class="mb-0">
+            <label class="form-label fw-semibold" for="{{ form.suppliers.id_for_label }}">
+              <i class="bi bi-truck-fill text-primary me-1"></i>{{ form.suppliers.label }}
+            </label>
+            {{ form.suppliers }}
+            {% if form.suppliers.help_text %}
+            <div class="form-text"><i class="bi bi-info-circle"></i> {{ form.suppliers.help_text }}</div>
+            {% endif %}
+            {% if form.suppliers.errors %}
+            <div class="text-danger small mt-1">{{ form.suppliers.errors|join:" " }}</div>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5 d-flex flex-column gap-4">
+
+      {# ── Tarjeta: Precio, Stock y Balance ───────────────────────── #}
+      <div class="card shadow-sm" style="border-top:3px solid #198754;">
+        <div class="card-header bg-dark text-white py-3">
+          <h5 class="mb-0"><i class="bi bi-calculator-fill me-2"></i>Precio y Stock</h5>
+        </div>
+        <div class="card-body p-4">
+
+          {# Precio unitario #}
+          <div class="mb-4">
+            <label class="form-label fw-semibold" for="id_price">
+              <i class="bi bi-currency-dollar text-success me-1"></i>{{ form.price.label }}
+              <span class="text-danger">*</span>
+            </label>
+            <div class="input-group">
+              <span class="input-group-text bg-success text-white fw-bold border-0">$</span>
+              {{ form.price }}
+            </div>
+            {% if form.price.errors %}
+            <div class="text-danger small mt-1" id="price-server-error">
+              <i class="bi bi-exclamation-circle-fill"></i> {{ form.price.errors|join:" " }}
+            </div>
+            {% endif %}
+            <div class="text-danger small mt-1 d-none" id="price-client-error">
+              <i class="bi bi-exclamation-circle-fill"></i>
+              El precio unitario debe ser mayor que cero.
+            </div>
+            {% if form.price.help_text %}
+            <div class="form-text"><i class="bi bi-lightbulb"></i> {{ form.price.help_text }}</div>
+            {% endif %}
+          </div>
+
+          {# Stock disponible #}
+          <div class="mb-4">
+            <label class="form-label fw-semibold" for="id_stock">
+              <i class="bi bi-archive-fill text-info me-1"></i>{{ form.stock.label }}
+              <span class="text-danger">*</span>
+            </label>
+            {{ form.stock }}
+            {% if form.stock.errors %}
+            <div class="text-danger small mt-1">
+              <i class="bi bi-exclamation-circle-fill"></i> {{ form.stock.errors|join:" " }}
+            </div>
+            {% endif %}
+            {% if form.stock.help_text %}
+            <div class="form-text"><i class="bi bi-lightbulb"></i> {{ form.stock.help_text }}</div>
+            {% endif %}
+          </div>
+
+          {# Balance (solo lectura, calculado en JS) #}
+          <div class="mb-0">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-graph-up-arrow text-warning me-1"></i>Balance en inventario
+            </label>
+            <div class="input-group">
+              <span class="input-group-text bg-warning text-dark fw-bold border-0">$</span>
+              <input type="text"
+                     id="balance-display"
+                     class="form-control fw-bold text-end fs-5 bg-light text-success"
+                     readonly
+                     value="{% if form.instance.pk %}{{ form.instance.balance }}{% else %}0.00{% endif %}">
+            </div>
+            <div class="form-text">
+              <i class="bi bi-calculator"></i>
+              Precio × Stock &mdash; se actualiza automáticamente.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {# ── Tarjeta: Imagen ────────────────────────────────────────── #}
+      <div class="card shadow-sm" style="border-top:3px solid #6f42c1;">
+        <div class="card-header bg-dark text-white py-3">
+          <h5 class="mb-0"><i class="bi bi-image-fill me-2"></i>Imagen del Producto</h5>
+        </div>
+        <div class="card-body p-4">
+
+          {# Vista previa #}
+          <div class="mb-3">
+            <div id="img-preview-wrap"
+                 class="border rounded-3 bg-light d-flex align-items-center
+                        justify-content-center overflow-hidden mx-auto"
+                 style="height:200px;cursor:pointer;"
+                 title="Vista previa">
+
+              {% if form.instance.image %}
+                {# Edición — imagen existente #}
+                <img id="img-preview"
+                     src="{{ form.instance.image.url }}"
+                     alt="{{ form.instance.name }}"
+                     class="img-fluid"
+                     style="max-height:200px;object-fit:contain;">
+              {% else %}
+                {# Creación — sin imagen todavía #}
+                <div id="img-placeholder" class="text-center text-secondary py-4">
+                  <i class="bi bi-cloud-arrow-up-fill d-block" style="font-size:3rem;opacity:.25;"></i>
+                  <p class="small mt-2 mb-0">Selecciona una imagen para previsualizarla</p>
+                </div>
+                <img id="img-preview" src="#"
+                     class="img-fluid d-none"
+                     style="max-height:200px;object-fit:contain;">
+              {% endif %}
+
+            </div>
+          </div>
+
+          {# Input de archivo #}
+          {{ form.image }}
+          {% if form.image.errors %}
+          <div class="text-danger small mt-1">
+            <i class="bi bi-exclamation-circle-fill"></i> {{ form.image.errors|join:" " }}
+          </div>
+          {% endif %}
+          {% if form.image.help_text %}
+          <div class="form-text"><i class="bi bi-lightbulb"></i> {{ form.image.help_text }}</div>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </div>{# /col derecha #}
+  </div>{# /row #}
+
+  {# ── Botones de acción ───────────────────────────────────────────── #}
+  <div class="d-flex align-items-center gap-3 mt-4 pt-3 border-top">
+    <button type="submit" class="btn btn-primary btn-lg px-5">
+      <i class="bi bi-save-fill me-1"></i> Guardar Producto
+    </button>
+    <a href="{% url 'billing:product_list' %}" class="btn btn-outline-secondary btn-lg">
+      <i class="bi bi-x-lg me-1"></i> Cancelar
+    </a>
+    <span class="text-muted small ms-auto">
+      <span class="text-danger">*</span> Campos obligatorios
+    </span>
+  </div>
+
+</form>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+(function () {
+  'use strict';
+
+  const priceInput   = document.getElementById('id_price');
+  const stockInput   = document.getElementById('id_stock');
+  const balanceDisp  = document.getElementById('balance-display');
+  const priceErr     = document.getElementById('price-client-error');
+
+  /* ── Balance: Precio × Stock ──────────────────────────────────── */
+  function updateBalance () {
+    const price  = parseFloat(priceInput.value)  || 0;
+    const stock  = parseInt(stockInput.value, 10) || 0;
+    const total  = (price * stock).toFixed(2);
+    balanceDisp.value = total;
+
+    if (price > 0 && stock > 0) {
+      balanceDisp.classList.replace('text-secondary', 'text-success');
+      balanceDisp.classList.add('text-success');
+    } else {
+      balanceDisp.classList.remove('text-success');
+      balanceDisp.classList.add('text-secondary');
+    }
+  }
+
+  /* ── Validación inmediata del precio ─────────────────────────── */
+  function validatePrice () {
+    const val = parseFloat(priceInput.value);
+    if (priceInput.value !== '' && (isNaN(val) || val <= 0)) {
+      priceInput.classList.add('is-invalid');
+      priceInput.classList.remove('is-valid');
+      priceErr.classList.remove('d-none');
+    } else if (priceInput.value !== '') {
+      priceInput.classList.remove('is-invalid');
+      priceInput.classList.add('is-valid');
+      priceErr.classList.add('d-none');
+    } else {
+      priceInput.classList.remove('is-invalid', 'is-valid');
+      priceErr.classList.add('d-none');
+    }
+  }
+
+  priceInput.addEventListener('input', function () { validatePrice(); updateBalance(); });
+  stockInput.addEventListener('input', updateBalance);
+
+  /* ── Vista previa de imagen en tiempo real ───────────────────── */
+  const fileInput   = document.querySelector('input[type="file"]');
+  const imgPreview  = document.getElementById('img-preview');
+  const imgPlaceholder = document.getElementById('img-placeholder');
+
+  if (fileInput) {
+    fileInput.addEventListener('change', function () {
+      if (this.files && this.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          imgPreview.src = e.target.result;
+          imgPreview.classList.remove('d-none');
+          if (imgPlaceholder) imgPlaceholder.classList.add('d-none');
+        };
+        reader.readAsDataURL(this.files[0]);
+      }
+    });
+  }
+
+  /* ── Inicializa balance con valores existentes (edición) ─────── */
+  updateBalance();
+
+})();
+</script>
+{% endblock %}

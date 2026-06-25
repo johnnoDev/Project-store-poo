@@ -1,0 +1,95 @@
+{% extends "billing/base.html" %}
+{% block title %}Mis Compras – SalesApp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0"><i class="bi bi-clock-history"></i> Mis Compras</h2>
+    <small class="text-muted">Historial de todas tus compras realizadas</small>
+  </div>
+  <a href="{% url 'billing:shop_catalog' %}" class="btn btn-primary">
+    <i class="bi bi-shop"></i> Ir a la tienda
+  </a>
+</div>
+
+{% if purchases %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle shadow-sm">
+    <thead class="table-dark">
+      <tr>
+        <th>Factura</th>
+        <th>Fecha y hora</th>
+        <th>Productos comprados</th>
+        <th>Método de pago</th>
+        <th>Referencia</th>
+        <th class="text-end">Total</th>
+        <th class="text-center">Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for purchase in purchases %}
+      <tr>
+        <td>
+          <span class="fw-bold text-primary">{{ purchase.invoice.number }}</span>
+        </td>
+        <td>
+          <div>{{ purchase.purchased_at|date:"d/m/Y" }}</div>
+          <small class="text-muted">{{ purchase.purchased_at|date:"H:i:s" }}</small>
+        </td>
+        <td>
+          <div class="d-flex flex-wrap gap-1">
+            {% for detail in purchase.invoice.details.all %}
+              <span class="badge bg-secondary">{{ detail.product.name }} &times;{{ detail.quantity }}</span>
+            {% endfor %}
+          </div>
+        </td>
+        <td>
+          {% if purchase.payment %}
+            {% if purchase.payment.method == 'card' %}
+              <i class="bi bi-credit-card text-primary"></i> Tarjeta
+              {% if purchase.payment.card_last4 %}
+                <small class="text-muted">****{{ purchase.payment.card_last4 }}</small>
+              {% endif %}
+            {% elif purchase.payment.method == 'paypal' %}
+              <i class="bi bi-paypal text-primary"></i> PayPal
+            {% else %}
+              <i class="bi bi-bank text-primary"></i> Transferencia
+            {% endif %}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if purchase.payment %}
+            <code class="small">{{ purchase.payment.reference }}</code>
+          {% else %}—{% endif %}
+        </td>
+        <td class="text-end">
+          <span class="fw-bold text-success fs-6">${{ purchase.invoice.total }}</span>
+        </td>
+        <td class="text-center">
+          <a href="{% url 'billing:order_receipt' purchase.invoice.pk %}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-receipt"></i> Ver factura
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="text-muted small mt-2">
+  Total de compras: <strong>{{ purchases|length }}</strong>
+</div>
+
+{% else %}
+<div class="text-center py-5">
+  <i class="bi bi-bag-x text-muted" style="font-size:5rem;"></i>
+  <h4 class="mt-3 text-muted">Aún no has realizado ninguna compra</h4>
+  <p class="text-muted">Explora nuestro catálogo y encuentra lo que necesitas.</p>
+  <a href="{% url 'billing:shop_catalog' %}" class="btn btn-primary btn-lg mt-1">
+    <i class="bi bi-shop"></i> Ver productos
+  </a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "billing/base.html" %}
+{% block title %}Factura #{{ invoice.number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2><i class="bi bi-receipt"></i> Factura #{{ invoice.number }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{% url 'billing:invoice_list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+    <a href="{% url 'billing:invoice_delete' invoice.pk %}" class="btn btn-outline-danger">
+      <i class="bi bi-trash"></i> Eliminar
+    </a>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">Datos del Cliente</h5></div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Nombre</dt>
+          <dd class="col-sm-8">{{ invoice.customer.get_full_name }}</dd>
+          <dt class="col-sm-4">Cédula/RUC</dt>
+          <dd class="col-sm-8"><code>{{ invoice.customer.cedula }}</code></dd>
+          <dt class="col-sm-4">Email</dt>
+          <dd class="col-sm-8">{{ invoice.customer.email|default:"—" }}</dd>
+          <dt class="col-sm-4">Teléfono</dt>
+          <dd class="col-sm-8">{{ invoice.customer.phone|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">Datos de la Factura</h5></div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Número</dt>
+          <dd class="col-sm-8"><strong>{{ invoice.number }}</strong></dd>
+          <dt class="col-sm-4">Fecha</dt>
+          <dd class="col-sm-8">{{ invoice.date|date:"d/m/Y" }}</dd>
+          <dt class="col-sm-4">Estado</dt>
+          <dd class="col-sm-8">
+            {% if invoice.status == 'paid' %}
+              <span class="badge bg-success">Pagada</span>
+            {% elif invoice.status == 'pending' %}
+              <span class="badge bg-warning text-dark">Pendiente</span>
+            {% else %}
+              <span class="badge bg-danger">Anulada</span>
+            {% endif %}
+          </dd>
+          <dt class="col-sm-4">Creado por</dt>
+          <dd class="col-sm-8">{{ invoice.created_by.get_full_name|default:invoice.created_by.username|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h5 class="mb-0">Detalle de Productos</h5></div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Producto</th>
+          <th class="text-end">Cantidad</th>
+          <th class="text-end">Precio Unit.</th>
+          <th class="text-end">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for detail in invoice.details.all %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ detail.product.name }}</td>
+          <td class="text-end">{{ detail.quantity }}</td>
+          <td class="text-end">${{ detail.unit_price }}</td>
+          <td class="text-end">${{ detail.subtotal }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted py-3">Sin detalles.</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light fw-bold">
+        <tr>
+          <td colspan="4" class="text-end">Subtotal:</td>
+          <td class="text-end">${{ invoice.subtotal }}</td>
+        </tr>
+        <tr>
+          <td colspan="4" class="text-end">IVA (15%):</td>
+          <td class="text-end">${{ invoice.iva }}</td>
+        </tr>
+        <tr class="table-success">
+          <td colspan="4" class="text-end fs-5">TOTAL:</td>
+          <td class="text-end fs-5">${{ invoice.total }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}

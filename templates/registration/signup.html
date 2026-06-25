@@ -1,0 +1,41 @@
+{% extends "billing/base.html" %}
+{% block title %}Registrarse{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow">
+      <div class="card-header text-center bg-dark text-white">
+        <h4 class="mb-0"><i class="bi bi-person-plus"></i> Crear Cuenta</h4>
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">{{ field.label }}</label>
+            <input type="{{ field.field.widget.input_type }}"
+                   name="{{ field.html_name }}"
+                   id="{{ field.auto_id }}"
+                   class="form-control {% if field.errors %}is-invalid{% endif %}"
+                   {% if field.value %}value="{{ field.value }}"{% endif %}>
+            {% if field.errors %}
+              <div class="invalid-feedback">{{ field.errors|join:" " }}</div>
+            {% endif %}
+            {% if field.help_text %}
+              <div class="form-text text-muted">{{ field.help_text }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-dark w-100">
+            <i class="bi bi-person-check"></i> Registrarse
+          </button>
+        </form>
+      </div>
+      <div class="card-footer text-center">
+        <small>¿Ya tienes cuenta? <a href="{% url 'login' %}">Inicia sesión aquí</a></small>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

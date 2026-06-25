@@ -1,0 +1,168 @@
+{% extends "billing/base.html" %}
+{% block title %}Factura #{{ invoice.number }} – SalesApp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+  <h2><i class="bi bi-receipt-cutoff"></i> Recibo de Compra</h2>
+  <div class="d-flex gap-2">
+    <button onclick="window.print()" class="btn btn-outline-primary">
+      <i class="bi bi-printer"></i> Imprimir
+    </button>
+    <a href="{% url 'billing:my_orders' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-clock-history"></i> Mis Compras
+    </a>
+    <a href="{% url 'billing:shop_catalog' %}" class="btn btn-success">
+      <i class="bi bi-shop"></i> Seguir comprando
+    </a>
+  </div>
+</div>
+
+<!-- Factura imprimible -->
+<div class="card shadow-lg" id="receipt-doc">
+
+  <!-- Encabezado verde de éxito -->
+  <div class="card-header bg-success text-white text-center py-4">
+    <i class="bi bi-check-circle-fill" style="font-size:2.5rem;"></i>
+    <h3 class="mt-2 mb-0">¡Pago Aprobado!</h3>
+    <p class="mb-0 opacity-75">Tu compra se procesó exitosamente</p>
+  </div>
+
+  <div class="card-body p-4">
+
+    <!-- Logo / empresa -->
+    <div class="text-center mb-4 pb-3 border-bottom">
+      <h4 class="fw-bold mb-0"><i class="bi bi-shop"></i> SalesApp</h4>
+      <p class="text-muted small mb-0">Sistema de Ventas y Facturación &mdash; Ecuador</p>
+      <p class="fw-bold fs-5 mt-2 mb-0">FACTURA Nº <span class="text-primary">{{ invoice.number }}</span></p>
+    </div>
+
+    <div class="row g-4 mb-4">
+      <!-- Datos del cliente -->
+      <div class="col-md-6">
+        <h6 class="text-uppercase text-muted fw-bold mb-3"><i class="bi bi-person-badge"></i> Datos del Cliente</h6>
+        <dl class="row mb-0">
+          <dt class="col-5 text-muted fw-normal">Nombre</dt>
+          <dd class="col-7 fw-semibold">{{ invoice.customer.get_full_name }}</dd>
+
+          <dt class="col-5 text-muted fw-normal">Cédula / RUC</dt>
+          <dd class="col-7"><code>{{ invoice.customer.cedula }}</code></dd>
+
+          {% if invoice.customer.email %}
+          <dt class="col-5 text-muted fw-normal">Email</dt>
+          <dd class="col-7">{{ invoice.customer.email }}</dd>
+          {% endif %}
+
+          {% if invoice.customer.phone %}
+          <dt class="col-5 text-muted fw-normal">Teléfono</dt>
+          <dd class="col-7">{{ invoice.customer.phone }}</dd>
+          {% endif %}
+
+          {% if invoice.customer.address %}
+          <dt class="col-5 text-muted fw-normal">Dirección</dt>
+          <dd class="col-7">{{ invoice.customer.address }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+
+      <!-- Datos de la factura y pago -->
+      <div class="col-md-6">
+        <h6 class="text-uppercase text-muted fw-bold mb-3"><i class="bi bi-file-earmark-text"></i> Datos de la Factura</h6>
+        <dl class="row mb-0">
+          <dt class="col-5 text-muted fw-normal">N° Factura</dt>
+          <dd class="col-7 fw-bold">{{ invoice.number }}</dd>
+
+          <dt class="col-5 text-muted fw-normal">Fecha</dt>
+          <dd class="col-7">{{ invoice.date|date:"d/m/Y" }}</dd>
+
+          <dt class="col-5 text-muted fw-normal">Estado</dt>
+          <dd class="col-7"><span class="badge bg-success">Pagada</span></dd>
+
+          {% if purchase %}
+          <dt class="col-5 text-muted fw-normal">Hora de compra</dt>
+          <dd class="col-7">{{ purchase.purchased_at|date:"d/m/Y H:i:s" }}</dd>
+
+          {% if purchase.payment %}
+          <dt class="col-5 text-muted fw-normal">Método de pago</dt>
+          <dd class="col-7">
+            {% if purchase.payment.method == 'card' %}<i class="bi bi-credit-card"></i>
+            {% elif purchase.payment.method == 'paypal' %}<i class="bi bi-paypal"></i>
+            {% else %}<i class="bi bi-bank"></i>{% endif %}
+            {{ purchase.payment.get_method_display }}
+          </dd>
+
+          {% if purchase.payment.card_last4 %}
+          <dt class="col-5 text-muted fw-normal">Tarjeta</dt>
+          <dd class="col-7">**** **** **** {{ purchase.payment.card_last4 }}</dd>
+          {% endif %}
+
+          <dt class="col-5 text-muted fw-normal">Referencia</dt>
+          <dd class="col-7"><code class="small">{{ purchase.payment.reference }}</code></dd>
+
+          <dt class="col-5 text-muted fw-normal">Estado pago</dt>
+          <dd class="col-7"><span class="badge bg-success">{{ purchase.payment.get_status_display }}</span></dd>
+          {% endif %}
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+
+    <!-- Detalle de productos -->
+    <h6 class="text-uppercase text-muted fw-bold mb-3"><i class="bi bi-list-ul"></i> Detalle de Productos</h6>
+    <table class="table table-bordered table-sm mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th class="text-center">#</th>
+          <th>Producto</th>
+          <th>Código</th>
+          <th class="text-end">Cant.</th>
+          <th class="text-end">Precio Unit.</th>
+          <th class="text-end">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for detail in invoice.details.all %}
+        <tr>
+          <td class="text-center">{{ forloop.counter }}</td>
+          <td>{{ detail.product.name }}</td>
+          <td><code>{{ detail.product.code }}</code></td>
+          <td class="text-end">{{ detail.quantity }}</td>
+          <td class="text-end">${{ detail.unit_price }}</td>
+          <td class="text-end">${{ detail.subtotal }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="fw-bold">
+        <tr class="table-light">
+          <td colspan="5" class="text-end">Subtotal:</td>
+          <td class="text-end">${{ invoice.subtotal }}</td>
+        </tr>
+        <tr class="table-light">
+          <td colspan="5" class="text-end">IVA (15%):</td>
+          <td class="text-end">${{ invoice.iva }}</td>
+        </tr>
+        <tr class="table-success">
+          <td colspan="5" class="text-end fs-5">TOTAL PAGADO:</td>
+          <td class="text-end fs-5 text-success">${{ invoice.total }}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+  </div>
+
+  <div class="card-footer text-center text-muted small py-3">
+    <i class="bi bi-patch-check-fill text-success"></i>
+    Documento generado por SalesApp &mdash; {{ invoice.date|date:"Y" }} &mdash; Gracias por su compra
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+@media print {
+  .navbar, footer, .d-print-none { display: none !important; }
+  .container { max-width: 100% !important; padding: 0 !important; }
+  #receipt-doc { box-shadow: none !important; border: 1px solid #dee2e6 !important; }
+  .card-header.bg-success { background-color: #198754 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+{% endblock %}

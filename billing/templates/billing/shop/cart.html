@@ -1,0 +1,100 @@
+{% extends "billing/base.html" %}
+{% block title %}Mi Carrito – SalesApp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-cart3"></i> Mi Carrito</h2>
+  <a href="{% url 'billing:shop_catalog' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Seguir comprando
+  </a>
+</div>
+
+{% if items %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Producto</th>
+            <th class="text-end">Precio unit.</th>
+            <th class="text-center" style="width:150px">Cantidad</th>
+            <th class="text-end">Subtotal</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>
+              <strong>{{ item.product.name }}</strong><br>
+              <small class="text-muted">{{ item.product.brand.name }} &middot; <code>{{ item.product.code }}</code></small>
+            </td>
+            <td class="text-end">${{ item.product.price }}</td>
+            <td>
+              <form method="post" action="{% url 'billing:cart_update' item.product.pk %}" class="d-flex align-items-center gap-1">
+                {% csrf_token %}
+                <input type="number" name="qty" value="{{ item.qty }}" min="0" max="{{ item.product.stock }}"
+                       class="form-control form-control-sm text-center" style="width:65px">
+                <button type="submit" class="btn btn-outline-secondary btn-sm" title="Actualizar">
+                  <i class="bi bi-arrow-repeat"></i>
+                </button>
+              </form>
+            </td>
+            <td class="text-end fw-bold">${{ item.line_total }}</td>
+            <td class="text-end">
+              <form method="post" action="{% url 'billing:cart_remove' item.product.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Resumen -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="bi bi-bag-check"></i> Resumen</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Subtotal</span>
+          <span>${{ subtotal }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">IVA (15%)</span>
+          <span>${{ iva }}</span>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between fw-bold fs-5">
+          <span>TOTAL</span>
+          <span class="text-success">${{ total }}</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <a href="{% url 'billing:shop_checkout' %}" class="btn btn-success w-100 btn-lg">
+          <i class="bi bi-lock-fill"></i> Proceder al pago
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="text-center py-5">
+  <i class="bi bi-cart-x text-muted" style="font-size:5rem;"></i>
+  <h4 class="mt-3 text-muted">Tu carrito está vacío</h4>
+  <p class="text-muted">Agrega productos desde la tienda para comenzar.</p>
+  <a href="{% url 'billing:shop_catalog' %}" class="btn btn-primary mt-1">
+    <i class="bi bi-shop"></i> Ir a la tienda
+  </a>
+</div>
+{% endif %}
+{% endblock %}

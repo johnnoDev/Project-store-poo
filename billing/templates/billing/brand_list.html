@@ -1,0 +1,52 @@
+{% extends "billing/base.html" %}
+{% block title %}Marcas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2><i class="bi bi-tag"></i> Marcas</h2>
+  <a href="{% url 'billing:brand_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Nueva Marca
+  </a>
+</div>
+
+<form method="get" class="mb-3 d-flex gap-2">
+  <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar marca...">
+  <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+</form>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Creado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for brand in brands %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td><strong>{{ brand.name }}</strong></td>
+          <td>{{ brand.description|truncatechars:60 }}</td>
+          <td>{{ brand.created_at|date:"d/m/Y" }}</td>
+          <td>
+            <a href="{% url 'billing:brand_edit' brand.pk %}" class="btn btn-sm btn-outline-warning">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <a href="{% url 'billing:brand_delete' brand.pk %}" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted py-3">No hay marcas registradas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

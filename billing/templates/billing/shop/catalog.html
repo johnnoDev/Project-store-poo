@@ -1,0 +1,93 @@
+{% extends "billing/base.html" %}
+{% block title %}Tienda – SalesApp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-0"><i class="bi bi-shop"></i> Catálogo de Productos</h2>
+    <small class="text-muted">Selecciona los productos que deseas comprar</small>
+  </div>
+  <a href="{% url 'billing:cart_view' %}" class="btn btn-outline-primary position-relative">
+    <i class="bi bi-cart3 fs-5"></i> Mi Carrito
+    {% if cart_count %}
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+        {{ cart_count }}
+      </span>
+    {% endif %}
+  </a>
+</div>
+
+<!-- Buscador y filtro -->
+<form method="get" class="row g-2 mb-4">
+  <div class="col-md-6">
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, descripción o código..." value="{{ q }}">
+    </div>
+  </div>
+  <div class="col-md-4">
+    <select name="group" class="form-select">
+      <option value="">Todas las categorías</option>
+      {% for g in groups %}
+        <option value="{{ g.pk }}" {% if group_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Filtrar</button>
+  </div>
+</form>
+
+<!-- Grid de productos -->
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-4">
+  {% for product in products %}
+  <div class="col">
+    <div class="card h-100 shadow-sm border-0">
+      {% if product.image %}
+        <img src="{{ product.image.url }}" class="card-img-top" style="height:190px;object-fit:cover;" alt="{{ product.name }}">
+      {% else %}
+        <div class="d-flex align-items-center justify-content-center bg-light" style="height:190px;border-radius:var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius) 0 0;">
+          <i class="bi bi-box-seam text-muted" style="font-size:3.5rem;"></i>
+        </div>
+      {% endif %}
+      <div class="card-body d-flex flex-column">
+        <span class="badge bg-secondary mb-1 align-self-start">{{ product.group.name }}</span>
+        <h6 class="card-title fw-bold">{{ product.name }}</h6>
+        <p class="text-muted small mb-1">{{ product.brand.name }} &middot; <code>{{ product.code }}</code></p>
+        {% if product.description %}
+          <p class="card-text small text-muted flex-grow-1">{{ product.description|truncatechars:70 }}</p>
+        {% else %}
+          <div class="flex-grow-1"></div>
+        {% endif %}
+        <p class="fs-4 fw-bold text-success mt-2 mb-1">${{ product.price }}</p>
+        <p class="small {% if product.stock < 5 %}text-danger fw-bold{% else %}text-muted{% endif %} mb-3">
+          <i class="bi bi-box2"></i>
+          {% if product.stock < 5 %}¡Quedan solo {{ product.stock }}!{% else %}Disponible: {{ product.stock }} uds.{% endif %}
+        </p>
+        <form method="post" action="{% url 'billing:cart_add' product.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <div class="input-group">
+            <input type="number" name="qty" value="1" min="1" max="{{ product.stock }}"
+                   class="form-control text-center" style="max-width:70px;">
+            <button type="submit" class="btn btn-primary flex-grow-1">
+              <i class="bi bi-cart-plus"></i> Agregar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="text-center py-5">
+      <i class="bi bi-search text-muted" style="font-size:3rem;"></i>
+      <h5 class="mt-3 text-muted">No se encontraron productos disponibles</h5>
+      {% if q or group_id %}
+        <a href="{% url 'billing:shop_catalog' %}" class="btn btn-outline-secondary mt-2">Ver todos los productos</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
